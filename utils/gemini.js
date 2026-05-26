@@ -130,6 +130,7 @@ async function callGemini(prompt, apiKey, config = {}) {
         maxOutputTokens: config.maxOutputTokens ?? 2048,
         ...(config.responseMimeType ? { responseMimeType: config.responseMimeType } : {}),
         ...(config.responseJsonSchema ? { responseJsonSchema: config.responseJsonSchema } : {}),
+        ...(config.thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget: config.thinkingBudget } } : {}),
       },
     }),
   });
@@ -240,6 +241,15 @@ function parseLabeledATSResponse(text) {
     suggestions: suggestionsMatch ? suggestionsMatch[1].trim() : ""
   });
 
+  if (result.score === 0 && result.matched_keywords.length > 0) {
+    const total = result.matched_keywords.length + result.missing_keywords.length;
+    result.score = total > 0 ? Math.round((result.matched_keywords.length / total) * 100) : 0;
+    if (result.score >= 80) result.grade = "Excellent";
+    else if (result.score >= 60) result.grade = "Good";
+    else if (result.score >= 40) result.grade = "Fair";
+    else result.grade = "Poor";
+  }
+
   if (!result.suggestions) {
     result.suggestions = "Review the missing keywords and update your summary and bullet points to align more closely with the job description.";
   }
@@ -332,16 +342,33 @@ OPTIMIZATION LOGIC:
 - Emphasize problem-solving, scalability, collaboration (Git), debugging, and performance (only if present in original content).
 
 5) PROJECTS OPTIMIZATION:
-- Highlight projects most relevant to the job.
-- Reorder bullets to emphasize:
+- SELECT only the 2–3 most relevant projects from the full list based on the job description.
+- If the candidate has fewer than 2 projects, include all of them.
+- If the candidate has more than 3 projects, EXCLUDE the least relevant ones entirely — do NOT include them with fewer bullets.
+- Selection criteria (in order of priority):
+  1. Technology overlap with the job description (matching stack, tools, frameworks)
+  2. Real-world impact, measurable outcomes, or scale
+  3. Complexity and scope of the project
+  4. Recency (prefer newer projects when relevance is equal)
+- For the selected projects, reorder bullets to emphasize:
   - Matching technologies
   - Real-world impact
   - Performance or scalability
+- NEVER include all projects just because they exist. Quality over quantity.
 
 6) SKILLS OPTIMIZATION:
-- Reorder skills based on job relevance.
-- Group logically (e.g., Backend, Frontend, Databases, Tools, Cloud).
-- Prioritize skills explicitly mentioned in the job description.
+- FILTER skills: only include skills that are relevant or useful for this specific job.
+- REMOVE skills that have zero relevance to the job description — do NOT include them just because the candidate has them.
+- KEEP a skill if it:
+  1. Is explicitly mentioned in the job description
+  2. Is a closely related technology to what the job requires
+  3. Is a foundational/universal skill (e.g., Git, Linux, OOP) that any role benefits from
+- REMOVE a skill if it:
+  1. Belongs to a completely different domain (e.g., mobile skills for a backend job)
+  2. Is not mentioned or implied anywhere in the job description
+  3. Would confuse the recruiter about the candidate's focus area
+- Reorder remaining skills within each category by job relevance (most relevant first).
+- If an entire skill category becomes empty after filtering, return it as an empty array — do NOT invent skills to fill it.
 
 7) CONCISENESS:
 - Remove redundancy.
@@ -529,6 +556,7 @@ Return ONLY a valid JSON object with this exact structure — no markdown, no ex
     const raw = await callGemini(prompt, apiKey, {
       temperature: 0.1,
       maxOutputTokens: 3072,
+      thinkingBudget: 0,
       responseMimeType: "application/json",
       responseJsonSchema: ATS_JSON_SCHEMA
     });
@@ -560,7 +588,8 @@ Example shape only (use real values, not these placeholders):
 
     const raw = await callGemini(fallbackPrompt, apiKey, {
       temperature: 0.1,
-      maxOutputTokens: 2048
+      maxOutputTokens: 2048,
+      thinkingBudget: 0
     });
 
     try {
@@ -586,7 +615,8 @@ Suggestions: <2-3 actionable sentences referencing the missing keywords>`;
 
       const labeledRaw = await callGemini(labeledPrompt, apiKey, {
         temperature: 0.1,
-        maxOutputTokens: 1024
+        maxOutputTokens: 1024,
+        thinkingBudget: 0
       });
 
       return parseLabeledATSResponse(labeledRaw);
