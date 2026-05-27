@@ -33,7 +33,8 @@ function buildResumeHtml(payload = {}) {
       padding: 0;
       color: var(--text);
       background: var(--paper);
-      font-family: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+      /* ATS-safe serif: Georgia ships on Windows/macOS; Liberation Serif/DejaVu Serif on Linux render at the same metrics as Times. */
+      font-family: Georgia, "Times New Roman", "Liberation Serif", "DejaVu Serif", Times, serif;
     }
 
     body {
@@ -102,8 +103,9 @@ function buildResumeHtml(payload = {}) {
 
     .entry {
       margin-top: 7px;
-      break-inside: auto;
-      page-break-inside: auto;
+      /* Allow entries to break across pages if needed (long roles), but prefer to keep together. */
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
     .entry:first-of-type {
@@ -115,8 +117,11 @@ function buildResumeHtml(payload = {}) {
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 12px;
       align-items: start;
+      /* Title row must stay with first bullet — never orphan a title at page bottom. */
       break-after: avoid-page;
       page-break-after: avoid;
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
     .entry-main,
@@ -144,18 +149,21 @@ function buildResumeHtml(payload = {}) {
       position: relative;
       margin: 0 0 2px;
       line-height: 1.35;
-      break-inside: auto;
-      page-break-inside: auto;
+      /* Never split a single bullet mid-sentence across pages. */
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
     .bullet-list li::before {
-      content: "•";
+      /* CSS-drawn dot matches preview exactly and renders identically regardless of font availability. */
+      content: "";
       position: absolute;
       left: -11px;
-      top: 0;
-      color: var(--text);
-      font-size: 10px;
-      line-height: 1.35;
+      top: 0.56em;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--text);
     }
 
     @media screen and (max-width: 640px) {
@@ -177,7 +185,8 @@ function buildResumeHtml(payload = {}) {
 
     /* ── Template: Modern ── */
     .template-modern {
-      font-family: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      /* ATS-safe sans: Helvetica/Arial are universal; Liberation Sans/DejaVu Sans cover Linux Chromium. */
+      font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", "DejaVu Sans", sans-serif;
     }
     .template-modern .resume-header {
       text-align: left;

@@ -38,13 +38,17 @@ app.post("/generate-pdf", async (req, res) => {
     const html = buildResumeHtml(payload);
 
     browser = await puppeteer.launch({
-      headless: true
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--font-render-hinting=none"]
     });
 
     const page = await browser.newPage();
-    await page.setContent(html, {
-      waitUntil: "networkidle0"
-    });
+    // "load" is enough since the HTML has no external resources (CSS is inlined).
+    await page.setContent(html, { waitUntil: "load" });
+
+    // Apply @media print rules and wait for all fonts to settle before snapshotting.
+    await page.emulateMediaType("print");
+    await page.evaluateHandle(() => document.fonts && document.fonts.ready);
 
     const pdf = await page.pdf({
       format: "A4",
@@ -113,9 +117,15 @@ app.post("/generate-cover-letter-pdf", async (req, res) => {
   try {
     const html = buildCoverLetterHtml(payload);
 
-    browser = await puppeteer.launch({ headless: true });
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--font-render-hinting=none"]
+    });
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "load" });
+
+    await page.emulateMediaType("print");
+    await page.evaluateHandle(() => document.fonts && document.fonts.ready);
 
     const pdf = await page.pdf({
       format: "A4",

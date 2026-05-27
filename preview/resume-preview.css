@@ -192,7 +192,8 @@ a {
   padding: var(--page-padding);
   background: var(--paper);
   box-shadow: var(--shadow);
-  font-family: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+  /* Matches backend/renderResume.js — ATS-safe serif, identical WYSIWYG with the PDF output. */
+  font-family: Georgia, "Times New Roman", "Liberation Serif", "DejaVu Serif", Times, serif;
   font-size: 13px;
   line-height: 1.35;
 }
@@ -343,7 +344,8 @@ a {
 
 /* ── Template: Modern ── */
 .page.template-modern {
-  font-family: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  /* Matches backend/renderResume.js — universal sans-serif stack for true WYSIWYG with the PDF. */
+  font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", "DejaVu Sans", sans-serif;
 }
 
 .page.template-modern .resume-header {

@@ -31,7 +31,8 @@ function buildCoverLetterHtml(payload = {}) {
       padding: 0;
       color: var(--text);
       background: var(--paper);
-      font-family: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+      /* ATS-safe serif: matches resume PDF stack for consistent personal branding across documents. */
+      font-family: Georgia, "Times New Roman", "Liberation Serif", "DejaVu Serif", Times, serif;
     }
 
     body {

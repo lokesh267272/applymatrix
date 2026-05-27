@@ -195,7 +195,8 @@ a {
   padding: var(--page-padding);
   background: var(--paper);
   box-shadow: var(--shadow);
-  font-family: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+  /* Matches backend/renderCoverLetter.js — ATS-safe serif, true WYSIWYG with the PDF. */
+  font-family: Georgia, "Times New Roman", "Liberation Serif", "DejaVu Serif", Times, serif;
   font-size: 13px;
   line-height: 1.6;
   color: var(--text);
