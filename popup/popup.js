@@ -78,8 +78,10 @@ function buildTailoredResumeFileName(resumeData) {
 
   const company = sanitizeFileNamePart(jobData?.company, '');
   const role = sanitizeFileNamePart(jobData?.title, 'Tailored Resume');
-  const parts = [sanitizeFileNamePart(fullName, 'Candidate'), role];
+  const date = isoDate();
+  const parts = [sanitizeFileNamePart(fullName, 'Candidate')];
   if (company) parts.push(company);
+  parts.push(role, date);
   return `${parts.join(' - ')}.pdf`;
 }
 
@@ -402,6 +404,7 @@ async function handleTailorResume() {
 
     renderTailoredResumeReady(previewState);
     await autoLogJobToTracker();
+    await attachToTrackerEntry({ tailoredResume });
     await openTailoredResumePreview();
     showToast('✅ Resume tailored successfully!');
   } catch (err) {
@@ -460,6 +463,8 @@ async function handleCoverLetter() {
 
     await storageSet({ [COVER_LETTER_KEY]: coverState });
     renderCoverLetterReady(coverState);
+    await autoLogJobToTracker();
+    await attachToTrackerEntry({ cover: coverState });
     await openCoverLetterPreview();
     showToast('✅ Cover letter generated!');
   } catch (err) {
@@ -1062,6 +1067,15 @@ function buildAppCard(app) {
   const statusClass = `status-${app.status.toLowerCase()}`;
   const metaParts   = [app.location, date, app.platform].filter(Boolean);
 
+  const hasResume = !!app.tailoredResume;
+  const hasCover  = !!app.coverLetterText;
+  const resumeTitle = hasResume
+    ? `Open the tailored resume saved on ${new Date(app.tailoredAt).toLocaleString()}`
+    : 'No tailored resume saved for this application yet';
+  const coverTitle = hasCover
+    ? `Open the cover letter saved on ${new Date(app.coverLetterAt).toLocaleString()}`
+    : 'No cover letter saved for this application yet';
+
   card.innerHTML = `
     <div class="app-card-header">
       <div class="app-card-info">
@@ -1070,6 +1084,14 @@ function buildAppCard(app) {
         <div class="app-card-meta">${esc(metaParts.join(' · '))}</div>
       </div>
       <span class="status-badge ${statusClass}">${esc(app.status)}</span>
+    </div>
+    <div class="app-snapshot-row">
+      <button class="app-snapshot-btn" data-snapshot="resume" ${hasResume ? '' : 'disabled'} title="${esc(resumeTitle)}">
+        📄 Resume${hasResume ? '' : ' (none)'}
+      </button>
+      <button class="app-snapshot-btn" data-snapshot="cover" ${hasCover ? '' : 'disabled'} title="${esc(coverTitle)}">
+        ✉️ Cover Letter${hasCover ? '' : ' (none)'}
+      </button>
     </div>
     <div class="app-card-actions">
       ${TRACKER_STATUSES.map(s =>
@@ -1082,6 +1104,16 @@ function buildAppCard(app) {
   card.querySelectorAll('.status-btn').forEach(btn => {
     btn.addEventListener('click', () => updateAppStatus(app.id, btn.dataset.status));
   });
+
+  const resumeBtn = card.querySelector('.app-snapshot-btn[data-snapshot="resume"]');
+  if (resumeBtn && hasResume) {
+    resumeBtn.addEventListener('click', () => openResumeFromTracker(app));
+  }
+
+  const coverBtn = card.querySelector('.app-snapshot-btn[data-snapshot="cover"]');
+  if (coverBtn && hasCover) {
+    coverBtn.addEventListener('click', () => openCoverFromTracker(app));
+  }
 
   card.querySelector('.app-delete-btn').addEventListener('click', () => deleteApp(app.id));
 
@@ -1166,6 +1198,95 @@ async function deleteApp(id) {
   await storageSet({ [TRACKER_KEY]: updated });
   renderTrackerList(updated);
   showToast('🗑️ Application removed');
+}
+
+// Attaches the latest tailored resume and/or cover letter snapshot to the tracker
+// entry matching the currently-detected job (by title + company).
+async function attachToTrackerEntry({ tailoredResume, cover } = {}) {
+  if (!jobData?.title) return;
+
+  const data = await storageGet([TRACKER_KEY]);
+  const apps = data[TRACKER_KEY] || [];
+  const idx = apps.findIndex(a => a.title === jobData.title && a.company === jobData.company);
+  if (idx === -1) return;
+
+  const updated = { ...apps[idx] };
+  if (tailoredResume) {
+    updated.tailoredResume = tailoredResume;
+    updated.tailoredAt = Date.now();
+  }
+  if (cover) {
+    updated.coverLetterText = cover.coverLetterText;
+    updated.coverLetterAt = Date.now();
+    updated.coverCandidateName = cover.candidateName;
+    updated.coverEmail = cover.email;
+  }
+  apps[idx] = updated;
+  await storageSet({ [TRACKER_KEY]: apps });
+  renderTrackerList(apps);
+}
+
+async function openResumeFromTracker(app) {
+  if (!app?.tailoredResume) {
+    showToast('No tailored resume saved for this application yet');
+    return;
+  }
+  const previewState = {
+    generatedAt: app.tailoredAt || app.appliedAt,
+    fileName: buildSnapshotResumeFileName(app),
+    job: {
+      title: app.title || '',
+      company: app.company || '',
+      location: app.location || '',
+      platform: app.platform || ''
+    },
+    resumeData: app.tailoredResume
+  };
+  await storageSet({ [TAILORED_PREVIEW_KEY]: previewState });
+  await chrome.tabs.create({ url: chrome.runtime.getURL('preview/resume-preview.html') });
+}
+
+async function openCoverFromTracker(app) {
+  if (!app?.coverLetterText) {
+    showToast('No cover letter saved for this application yet');
+    return;
+  }
+  const coverState = {
+    coverLetterText: app.coverLetterText,
+    candidateName: app.coverCandidateName || profile?.name || '',
+    email: app.coverEmail || profile?.email || '',
+    job: {
+      title: app.title || '',
+      company: app.company || ''
+    },
+    generatedAt: app.coverLetterAt || app.appliedAt
+  };
+  await storageSet({ [COVER_LETTER_KEY]: coverState });
+  await chrome.tabs.create({ url: chrome.runtime.getURL('preview/cover-letter-preview.html') });
+}
+
+function buildSnapshotResumeFileName(app) {
+  const fullName = [
+    app?.tailoredResume?.personal?.firstName || profile?.name || '',
+    app?.tailoredResume?.personal?.lastName || ''
+  ].join(' ').trim() || profile?.name || 'Candidate';
+
+  const company = sanitizeFileNamePart(app?.company, '');
+  const role = sanitizeFileNamePart(app?.title, 'Tailored Resume');
+  const date = isoDate(app?.tailoredAt || app?.appliedAt);
+  const parts = [sanitizeFileNamePart(fullName, 'Candidate')];
+  if (company) parts.push(company);
+  parts.push(role);
+  if (date) parts.push(date);
+  return `${parts.join(' - ')}.pdf`;
+}
+
+function isoDate(ts) {
+  const d = ts ? new Date(ts) : new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function esc(str) {

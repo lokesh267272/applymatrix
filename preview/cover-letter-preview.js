@@ -143,6 +143,24 @@ function sanitizeFileName(name) {
     .trim() || "Cover-Letter.pdf";
 }
 
+function isoDate(ts) {
+  const d = ts ? new Date(ts) : new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function buildCoverLetterFileName(extension) {
+  const parts = [];
+  if (previewState?.candidateName) parts.push(previewState.candidateName);
+  if (previewState?.job?.company) parts.push(previewState.job.company);
+  parts.push("Cover Letter");
+  if (previewState?.job?.title) parts.push(previewState.job.title);
+  parts.push(isoDate(previewState?.generatedAt));
+  return `${parts.join(" - ")}.${extension}`;
+}
+
 function buildPayload(fileName) {
   return {
     fileName,
@@ -187,9 +205,7 @@ async function handleDownloadPdf() {
 
   const button = $("downloadPdfBtn");
   const originalText = button.textContent;
-  const namePart = previewState.candidateName ? `${previewState.candidateName} - ` : "";
-  const jobPart = previewState.job?.title ? `Cover Letter - ${previewState.job.title}` : "Cover Letter";
-  const fileName = sanitizeFileName(`${namePart}${jobPart}.pdf`);
+  const fileName = sanitizeFileName(buildCoverLetterFileName("pdf"));
 
   button.disabled = true;
   button.textContent = "Generating...";
@@ -211,9 +227,7 @@ async function handleDownloadDocx() {
 
   const button = $("downloadDocxBtn");
   const originalText = button.textContent;
-  const namePart = previewState.candidateName ? `${previewState.candidateName} - ` : "";
-  const jobPart = previewState.job?.title ? `Cover Letter - ${previewState.job.title}` : "Cover Letter";
-  const fileName = sanitizeFileName(`${namePart}${jobPart}.docx`);
+  const fileName = sanitizeFileName(buildCoverLetterFileName("docx"));
 
   button.disabled = true;
   button.textContent = "Generating...";
