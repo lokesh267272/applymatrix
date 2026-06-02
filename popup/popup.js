@@ -4,6 +4,7 @@
 let jobData = null;
 let profile = {};
 let apiKey = '';
+let chatMessages = [];
 
 // ── DOM REFS ──
 const $ = id => document.getElementById(id);
@@ -13,6 +14,8 @@ const TAILORED_PREVIEW_KEY = 'tailoredResumePreview';
 const COVER_LETTER_KEY = 'coverLetterPreview';
 const TRACKER_KEY = 'applicationTracker';
 const TRACKER_STATUSES = ['Applied', 'Interview', 'Offer', 'Rejected'];
+const CHAT_HISTORY_KEY = 'chatHistory';
+const CHAT_HISTORY_LIMIT = 12;
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', async () => {
@@ -24,6 +27,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   await restoreTailoredResumeState();
   await restoreCoverLetterState();
   setupResumeBuilder();
+  setupChat();
+  await restoreChatState();
   await loadTrackerTab();
   detectJob();
 });
@@ -136,6 +141,7 @@ function setupTabs() {
         pane.classList.add('active');
       }
       if (targetId === 'tracker') loadTrackerTab();
+      if (targetId === 'chat') updateChatContext();
     });
   });
 }
@@ -211,6 +217,7 @@ async function detectJob() {
 
     jobData = response.data;
     renderJobDetails(jobData);
+    updateChatContext();
     setBanner('active', `${jobData.platform} job detected`);
 
   } catch (err) {
@@ -583,6 +590,190 @@ function showToast(msg, duration = 3000) {
   setTimeout(() => toast.classList.remove('show'), duration);
 }
 
+// ── CHAT / ASK AI ──
+function setupChat() {
+  const sendBtn = $('chatSendBtn');
+  const clearBtn = $('chatClearBtn');
+  const input = $('chatInput');
+
+  if (sendBtn) sendBtn.addEventListener('click', () => handleSendChat());
+  if (clearBtn) clearBtn.addEventListener('click', () => clearChat());
+
+  if (input) {
+    // Enter sends; Shift+Enter inserts a newline
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendChat();
+      }
+    });
+    // Auto-grow the textarea up to its max-height
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
+    });
+  }
+
+  updateChatContext();
+}
+
+// Show what context the chatbot is using (resume + the detected job, if any)
+function updateChatContext() {
+  const el = $('chatContextText');
+  if (!el) return;
+  if (jobData && (jobData.title || jobData.company)) {
+    const role = jobData.title || 'this role';
+    const company = jobData.company ? ` at ${jobData.company}` : '';
+    el.textContent = `📄 Resume + ${role}${company}`;
+  } else {
+    el.textContent = '📄 Using your resume';
+  }
+}
+
+async function restoreChatState() {
+  const data = await storageGet([CHAT_HISTORY_KEY]);
+  chatMessages = Array.isArray(data[CHAT_HISTORY_KEY]) ? data[CHAT_HISTORY_KEY] : [];
+  renderChatMessages();
+}
+
+// Chat only needs an API key + resume; a detected job is optional context
+function guardChatCheck() {
+  if (!apiKey) {
+    showToast('⚠️ Add your Gemini API key in Settings first');
+    $('settingsPanel').classList.add('open');
+    return false;
+  }
+  if (!profile.resume) {
+    showToast('⚠️ Add your base resume in Settings first');
+    $('settingsPanel').classList.add('open');
+    return false;
+  }
+  return true;
+}
+
+async function handleSendChat() {
+  const input = $('chatInput');
+  const question = (input?.value || '').trim();
+  if (!question) return;
+  if (!guardChatCheck()) return;
+
+  // Recent turns sent for context (bounds cost); resume rides in the cached
+  // systemInstruction, not here.
+  const history = chatMessages.slice(-CHAT_HISTORY_LIMIT);
+
+  chatMessages.push({ role: 'user', text: question });
+  if (input) {
+    input.value = '';
+    input.style.height = 'auto';
+  }
+  renderChatMessages();
+  setChatTyping(true);
+
+  const sendBtn = $('chatSendBtn');
+  if (sendBtn) sendBtn.disabled = true;
+
+  try {
+    const reply = await generateApplicationAnswer({
+      question,
+      history,
+      resumeText: profile.resume,
+      candidateName: profile.name,
+      job: jobData
+    }, apiKey);
+
+    chatMessages.push({ role: 'model', text: reply });
+    await storageSet({ [CHAT_HISTORY_KEY]: chatMessages });
+    renderChatMessages();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+    // Roll back the unanswered turn so history stays clean, and hand the
+    // question back to the input box so the user can retry.
+    chatMessages.pop();
+    if (input) input.value = question;
+    renderChatMessages();
+  } finally {
+    setChatTyping(false);
+    if (sendBtn) sendBtn.disabled = false;
+  }
+}
+
+function setChatTyping(isTyping) {
+  const container = $('chatMessages');
+  if (!container) return;
+  let typing = $('chatTyping');
+  if (isTyping) {
+    if (!typing) {
+      typing = document.createElement('div');
+      typing.id = 'chatTyping';
+      typing.className = 'chat-msg model chat-typing';
+      typing.innerHTML =
+        '<div class="chat-bubble">' +
+        '<span class="typing-dot"></span>' +
+        '<span class="typing-dot"></span>' +
+        '<span class="typing-dot"></span>' +
+        '</div>';
+      container.appendChild(typing);
+    }
+    container.scrollTop = container.scrollHeight;
+  } else if (typing) {
+    typing.remove();
+  }
+}
+
+function renderChatMessages() {
+  const container = $('chatMessages');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!chatMessages.length) {
+    const empty = document.createElement('div');
+    empty.className = 'chat-empty';
+    empty.innerHTML =
+      '<div class="empty-icon">💬</div>' +
+      '<p class="empty-title">Ask anything for your application</p>' +
+      '<p class="empty-sub">Paste a question from the application form (like “Why do you want this role?”) and get a natural, resume-based answer you can paste straight back.</p>';
+    container.appendChild(empty);
+    return;
+  }
+
+  chatMessages.forEach((msg) => {
+    const row = document.createElement('div');
+    row.className = `chat-msg ${msg.role === 'user' ? 'user' : 'model'}`;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.textContent = msg.text;
+    row.appendChild(bubble);
+
+    if (msg.role === 'model') {
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'chat-copy';
+      copyBtn.textContent = '📋 Copy';
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(msg.text).then(() => {
+          copyBtn.textContent = '✅ Copied!';
+          copyBtn.classList.add('copied');
+          setTimeout(() => {
+            copyBtn.textContent = '📋 Copy';
+            copyBtn.classList.remove('copied');
+          }, 2000);
+        });
+      });
+      row.appendChild(copyBtn);
+    }
+
+    container.appendChild(row);
+  });
+
+  container.scrollTop = container.scrollHeight;
+}
+
+async function clearChat() {
+  chatMessages = [];
+  await storageSet({ [CHAT_HISTORY_KEY]: chatMessages });
+  renderChatMessages();
+}
+
 // ── RESUME BUILDER ──
 
 const SKILL_CATEGORIES = [
@@ -843,18 +1034,65 @@ function renderSkillCategories(skillsData) {
     container.appendChild(catDiv);
     const chipsRow = catDiv.querySelector(`#skillcat-${cat.id}`);
     (skillsData[cat.id] || []).forEach(skill => addSkillChip(chipsRow, skill));
-    const addInput = catDiv.querySelector('.skill-add-input');
-    catDiv.querySelector('.skill-add-btn').addEventListener('click', () => {
-      const val = addInput.value.trim();
-      if (val) { addSkillChip(chipsRow, val); addInput.value = ''; }
-    });
-    addInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const val = e.target.value.trim();
-        if (val) { addSkillChip(chipsRow, val); e.target.value = ''; }
-      }
-    });
+    wireSkillAddRow(catDiv, chipsRow);
+  });
+
+  // Render any custom categories present in the saved data.
+  (Array.isArray(skillsData.custom) ? skillsData.custom : []).forEach(entry => {
+    addCustomSkillCategory(entry?.title, entry?.items);
+  });
+
+  // Footer: button to add a new custom category.
+  const footer = document.createElement('div');
+  footer.className = 'skill-custom-footer';
+  footer.innerHTML = `<button type="button" class="add-custom-skill-btn">➕ Add custom skill category</button>`;
+  footer.querySelector('.add-custom-skill-btn').addEventListener('click', () => addCustomSkillCategory());
+  container.appendChild(footer);
+}
+
+function addCustomSkillCategory(title = '', items = []) {
+  const container = $('b-skills-container');
+  // Insert before the footer so the "+ Add" button stays at the bottom.
+  const footer = container.querySelector('.skill-custom-footer');
+
+  const catDiv = document.createElement('div');
+  catDiv.className = 'skill-category skill-category--custom';
+  catDiv.innerHTML = `
+    <div class="skill-cat-header">
+      <input type="text" class="skill-cat-title-input" placeholder="Section title, e.g., Game Development" value="${esc(title)}" />
+      <button type="button" class="skill-cat-remove-btn" title="Remove this section">✕</button>
+    </div>
+    <div class="skill-chips-row"></div>
+    <div class="skill-add-row">
+      <input type="text" class="skill-add-input" placeholder="Type skill + Enter..." />
+      <button class="skill-add-btn" type="button">+</button>
+    </div>`;
+
+  if (footer) {
+    container.insertBefore(catDiv, footer);
+  } else {
+    container.appendChild(catDiv);
+  }
+
+  const chipsRow = catDiv.querySelector('.skill-chips-row');
+  (Array.isArray(items) ? items : []).forEach(skill => addSkillChip(chipsRow, skill));
+  wireSkillAddRow(catDiv, chipsRow);
+
+  catDiv.querySelector('.skill-cat-remove-btn').addEventListener('click', () => catDiv.remove());
+}
+
+function wireSkillAddRow(catDiv, chipsRow) {
+  const addInput = catDiv.querySelector('.skill-add-input');
+  catDiv.querySelector('.skill-add-btn').addEventListener('click', () => {
+    const val = addInput.value.trim();
+    if (val) { addSkillChip(chipsRow, val); addInput.value = ''; }
+  });
+  addInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = e.target.value.trim();
+      if (val) { addSkillChip(chipsRow, val); e.target.value = ''; }
+    }
   });
 }
 
@@ -968,6 +1206,15 @@ function collectBuilderData() {
       $(`skillcat-${cat.id}`)?.querySelectorAll('.skill-chip-text') || []
     ).map(el => el.textContent.trim()).filter(v => v);
   });
+
+  skills.custom = Array.from(document.querySelectorAll('.skill-category--custom'))
+    .map(catEl => {
+      const title = catEl.querySelector('.skill-cat-title-input')?.value.trim() || '';
+      const items = Array.from(catEl.querySelectorAll('.skill-chip-text'))
+        .map(el => el.textContent.trim()).filter(v => v);
+      return { title, items };
+    })
+    .filter(entry => entry.title && entry.items.length);
 
   const projects = [];
   $('b-projects-list').querySelectorAll('.builder-entry').forEach(e => {

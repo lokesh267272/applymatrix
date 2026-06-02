@@ -60,6 +60,12 @@
       ["Mobile Development", skills?.mobileDevelopment]
     ];
 
+    (Array.isArray(skills?.custom) ? skills.custom : []).forEach((entry) => {
+      const title = String(entry?.title ?? "").trim();
+      const items = Array.isArray(entry?.items) ? entry.items : [];
+      if (title && items.some(Boolean)) rows.push([title, items]);
+    });
+
     return rows
       .filter(([, list]) => Array.isArray(list) && list.some(Boolean))
       .map(([label, list]) => {

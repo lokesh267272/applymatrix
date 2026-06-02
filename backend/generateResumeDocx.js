@@ -149,6 +149,12 @@ async function buildResumeDocx(payload) {
     ["Mobile Development",    skills.mobileDevelopment]
   ].filter(([, list]) => Array.isArray(list) && list.some(Boolean));
 
+  (Array.isArray(skills.custom) ? skills.custom : []).forEach((entry) => {
+    const title = String(entry?.title ?? "").trim();
+    const items = Array.isArray(entry?.items) ? entry.items.filter(Boolean) : [];
+    if (title && items.length) skillRows.push([title, items]);
+  });
+
   if (skillRows.length) {
     children.push(sectionHeader("Skills"));
     for (const [label, list] of skillRows) {

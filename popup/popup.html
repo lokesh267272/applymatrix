@@ -142,6 +142,9 @@
         <button class="tab" data-tab="tracker">
           <span class="tab-icon">📋</span> Track
         </button>
+        <button class="tab" data-tab="chat">
+          <span class="tab-icon">💬</span> Ask
+        </button>
       </div>
 
       <!-- Tab: Job Details -->
@@ -506,6 +509,34 @@
             Navigate to a job listing and click "Log This Job Application" to
             start tracking.
           </p>
+        </div>
+      </div>
+
+      <!-- Tab: Ask AI / Chat -->
+      <div class="tab-pane hidden" id="tab-chat">
+        <div class="chat-context">
+          <span class="chat-context-text" id="chatContextText"
+            >📄 Using your resume</span
+          >
+          <button class="chat-clear" id="chatClearBtn" title="Clear conversation">
+            Clear
+          </button>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-row">
+          <textarea
+            id="chatInput"
+            class="chat-input"
+            rows="1"
+            placeholder="Paste an application question…"
+          ></textarea>
+          <button
+            class="btn btn-primary chat-send"
+            id="chatSendBtn"
+            title="Send"
+          >
+            ➤
+          </button>
         </div>
       </div>
     </div>

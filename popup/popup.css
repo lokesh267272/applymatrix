@@ -1058,6 +1058,13 @@ body {
   margin-bottom: 10px;
 }
 
+.skill-category--custom {
+  background: var(--bg2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
 .skill-cat-label {
   font-size: 11px;
   font-weight: 600;
@@ -1065,6 +1072,76 @@ body {
   margin-bottom: 5px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+}
+
+.skill-cat-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.skill-cat-title-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  outline: none;
+}
+
+.skill-cat-title-input:focus {
+  border-color: var(--accent);
+}
+
+.skill-cat-remove-btn {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  color: var(--red);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.skill-cat-remove-btn:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+.skill-custom-footer {
+  margin-top: 4px;
+}
+
+.add-custom-skill-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text3);
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.add-custom-skill-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent2);
 }
 
 .skill-chips-row {
@@ -1435,4 +1512,200 @@ body {
 
 .api-warning:hover {
   background: rgba(251, 191, 36, 0.14);
+}
+
+/* ── CHAT / ASK AI ── */
+/* Pane itself doesn't scroll; the messages list does, input stays pinned. */
+#tab-chat {
+  overflow: hidden;
+}
+
+.chat-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.chat-context-text {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-clear {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.chat-clear:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.chat-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 2px;
+}
+
+.chat-empty {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 20px;
+}
+
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 90%;
+  gap: 3px;
+}
+
+.chat-msg.user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.chat-msg.model {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.chat-bubble {
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-msg.user .chat-bubble {
+  background: var(--accent-glow);
+  border: 1px solid rgba(124, 111, 255, 0.3);
+  color: var(--text);
+  border-bottom-right-radius: 4px;
+}
+
+.chat-msg.model .chat-bubble {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-copy {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 2px 4px;
+  transition: color 0.2s;
+}
+
+.chat-copy:hover {
+  color: var(--accent2);
+}
+
+.chat-copy.copied {
+  color: var(--green);
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.chat-input {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 9px 10px;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  outline: none;
+  resize: none;
+  min-height: 40px;
+  max-height: 120px;
+  transition: border-color 0.2s;
+}
+
+.chat-input:focus {
+  border-color: var(--accent);
+}
+
+.chat-send {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 16px;
+}
+
+/* Typing indicator */
+.chat-typing .chat-bubble {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text3);
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }

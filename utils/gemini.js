@@ -64,7 +64,18 @@ const RESUME_JSON_SCHEMA = {
         databases: { type: "array", items: { type: "string" } },
         cloudPlatforms: { type: "array", items: { type: "string" } },
         mlAI: { type: "array", items: { type: "string" } },
-        mobileDevelopment: { type: "array", items: { type: "string" } }
+        mobileDevelopment: { type: "array", items: { type: "string" } },
+        custom: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              items: { type: "array", items: { type: "string" } }
+            },
+            required: ["title", "items"]
+          }
+        }
       },
       required: ["programmingLanguages", "csConcepts", "webDevelopment", "databases", "cloudPlatforms", "mlAI", "mobileDevelopment"]
     },
@@ -121,6 +132,16 @@ const ATS_JSON_SCHEMA = {
   required: ["score", "grade", "matched_keywords", "missing_keywords", "suggestions"]
 };
 
+// Pull the visible answer text out of a Gemini response (skipping "thought" parts)
+function extractGeminiText(data) {
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  return parts
+    .filter((p) => !p.thought)
+    .map((p) => p.text ?? "")
+    .join("")
+    .trim();
+}
+
 async function callGemini(prompt, apiKey, config = {}) {
   const response = await fetch(GEMINI_BASE, {
     method: "POST",
@@ -149,12 +170,50 @@ async function callGemini(prompt, apiKey, config = {}) {
   }
 
   const data = await response.json();
-  const parts = data?.candidates?.[0]?.content?.parts ?? [];
-  const text = parts
-    .filter((p) => !p.thought)
-    .map((p) => p.text ?? "")
-    .join("")
-    .trim();
+  const text = extractGeminiText(data);
+  if (!text) throw new Error("Gemini returned empty response.");
+  return text;
+}
+
+/**
+ * Multi-turn variant of callGemini.
+ *
+ * Sends a stable `systemInstruction` (kept identical across a chat session so
+ * Gemini's automatic implicit caching discounts the repeated tokens) plus the
+ * rolling conversation as a `contents` array of { role, parts } turns.
+ */
+async function callGeminiConversation({ systemInstruction, contents }, apiKey, config = {}) {
+  const body = {
+    contents,
+    generationConfig: {
+      temperature: config.temperature ?? 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: config.maxOutputTokens ?? 1024,
+      ...(config.thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget: config.thinkingBudget } } : {}),
+    },
+  };
+  if (systemInstruction) {
+    body.systemInstruction = { parts: [{ text: systemInstruction }] };
+  }
+
+  const response = await fetch(GEMINI_BASE, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-goog-api-key": apiKey,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const msg = err?.error?.message || `HTTP ${response.status}`;
+    throw new Error(`Gemini API Error: ${msg}`);
+  }
+
+  const data = await response.json();
+  const text = extractGeminiText(data);
   if (!text) throw new Error("Gemini returned empty response.");
   return text;
 }
@@ -390,6 +449,7 @@ OPTIMIZATION LOGIC:
 - Reorder within each category by JD relevance (most relevant first).
 - If a category becomes empty after filtering, return it as an empty array. NEVER invent skills.
 - Note: cloudPlatforms category includes Git, Docker, Kubernetes, Linux, AWS/Azure/GCP — keep this grouping.
+- CUSTOM CATEGORIES (skills.custom): apply the same KEEP/REMOVE rules. Preserve each custom title verbatim — never rename or merge custom categories. If a custom category's items all get filtered out, remove that custom category entry entirely from the array (do NOT keep an empty one). If skills.custom was empty in input, return an empty array.
 
 9) KEYWORD DENSITY (ANTI-STUFFING):
 - No single keyword should appear MORE than 3 times across the entire resume.
@@ -581,7 +641,8 @@ Place each skill in the SINGLE best-fitting category. If a skill plausibly fits 
 - cloudPlatforms: AWS, Azure, GCP, Docker, Kubernetes, Terraform, Ansible, Jenkins, GitHub Actions, GitLab CI, CircleCI, Linux, Unix, Git, Nginx, Apache, CI/CD.
 - mlAI: TensorFlow, PyTorch, Keras, scikit-learn, Hugging Face, NLP, Computer Vision, LLMs, Prompt Engineering, LangChain, RAG, OpenCV, Pandas, NumPy, Matplotlib.
 - mobileDevelopment: React Native, Flutter, Android, iOS, Swift, SwiftUI, Kotlin, Jetpack Compose, Xamarin.
-- FALLBACK: if a skill doesn't fit any category cleanly, place it in csConcepts. NEVER drop a skill.
+- CUSTOM CATEGORIES: if the resume has its own labeled skill group that doesn't fit any of the 7 fixed buckets (e.g., "Game Development", "Cybersecurity", "Embedded Systems", "Cloud Security", "Hardware", "Design Tools", "Quantum Computing"), preserve it as a custom category in skills.custom: [{ title: "<exact label from resume>", items: [...] }]. Keep the user's original section title verbatim.
+- FALLBACK (only if no custom-category label is given): if a single loose skill doesn't fit any of the 7 fixed categories AND has no custom heading, place it in csConcepts. NEVER drop a skill.
 
 4) DATE NORMALIZATION:
 - Preferred format: "MMM YYYY" (e.g., "Jan 2022", "Sep 2024").
@@ -837,4 +898,76 @@ Suggestions: KEYWORDS: <add these>. PHRASING: <one rewording>. STRUCTURE: <one s
       return parseLabeledATSResponse(labeledRaw);
     }
   }
+}
+
+/**
+ * Build the stable system instruction for the application chatbot.
+ *
+ * This is the cached prefix: it must be built from stable inputs only (resume,
+ * name, the open job) and stay byte-identical across messages in a session so
+ * Gemini's implicit caching keeps discounting the repeated resume tokens.
+ */
+function buildChatSystemInstruction({ resumeText, candidateName, job }) {
+  const name = candidateName || "the candidate";
+
+  let jobBlock = "";
+  if (job && (job.title || job.company || job.description)) {
+    jobBlock = `
+
+THE ROLE BEING APPLIED TO (use this to tailor answers; if a question is generic, you may ignore it):
+Title: ${job.title || "Not specified"}
+Company: ${job.company || "Not specified"}
+Description:
+${job.description || "Not provided"}`;
+  }
+
+  return `You are helping ${name} answer questions on a job application form. You write the answer AS ${name}, in the first person ("I"), as if ${name} typed it personally.
+
+${name}'s RESUME (this is the ONLY source of truth about ${name} — never invent anything beyond it):
+${resumeText}${jobBlock}
+
+HOW TO WRITE (this is the whole point — it must read like a real person, not AI):
+- Sound like a real human typing a thoughtful application answer. Natural, warm, professional. Not robotic, not salesy.
+- Vary your sentence length. Mix short, punchy sentences with longer ones. Use plain, everyday words.
+- Be specific. Pull real details from the resume (actual projects, tools, roles, outcomes) instead of vague claims.
+- Write in first person as ${name}. Never refer to "the candidate" and never talk about yourself as an AI.
+- Match the length to the question. A short question gets 2-4 sentences. An open "tell us about..." question gets one or two short paragraphs. Never pad.
+
+NEVER DO THIS (these are dead giveaways of AI writing):
+- No "As an AI", "I'd be happy to", "Certainly!", "Great question", or any preamble. Output only the answer itself.
+- No corporate clichés: "passionate", "results-driven", "detail-oriented", "team player", "self-starter", "go-getter", "synergy", "hard-working", "think outside the box".
+- No AI-tell words: "leverage", "utilize", "delve", "tapestry", "testament", "seamless", "robust", "game-changer", "in today's fast-paced world", "navigate the landscape".
+- No markdown, no bullet points, no headings, no emojis — unless the question explicitly asks for a list. Just plain sentences the user can paste directly.
+- No exclamation points unless one genuinely fits.
+
+TRUTHFULNESS:
+- Only use skills, experiences, and facts that are in the resume. Never invent employers, job titles, dates, metrics, or technologies ${name} has not listed.
+- If a question asks about something not in the resume, answer honestly and pivot to a genuine, relevant strength — do not fabricate experience.
+
+Reply with ONLY the answer text, ready to paste into the application.`;
+}
+
+/**
+ * Answer a single application question with full resume (+ optional job) context
+ * and the recent conversation history, in a natural, human voice.
+ */
+async function generateApplicationAnswer(
+  { question, history, resumeText, candidateName, job },
+  apiKey,
+) {
+  const systemInstruction = buildChatSystemInstruction({ resumeText, candidateName, job });
+
+  const contents = [];
+  (history || []).forEach((m) => {
+    const role = m.role === "model" ? "model" : "user";
+    const text = String(m.text ?? "").trim();
+    if (text) contents.push({ role, parts: [{ text }] });
+  });
+  contents.push({ role: "user", parts: [{ text: String(question ?? "").trim() }] });
+
+  return await callGeminiConversation(
+    { systemInstruction, contents },
+    apiKey,
+    { temperature: 0.8, maxOutputTokens: 1024 },
+  );
 }
