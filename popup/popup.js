@@ -855,6 +855,7 @@ function renderBuilderFields(data) {
   $('b-location').value  = p.location  || '';
   $('b-linkedin').value  = p.linkedin  || '';
   $('b-github').value    = p.github    || '';
+  $('b-portfolio').value = p.portfolio || '';
   $('b-summary').value   = data.summary || '';
 
   $('b-experience-list').innerHTML = '';
@@ -1251,7 +1252,8 @@ function collectBuilderData() {
       phone:     $('b-phone')?.value     || '',
       location:  $('b-location')?.value  || '',
       linkedin:  $('b-linkedin')?.value  || '',
-      github:    $('b-github')?.value    || ''
+      github:    $('b-github')?.value    || '',
+      portfolio: $('b-portfolio')?.value || ''
     },
     summary: $('b-summary')?.value || '',
     experience, education, skills, projects,

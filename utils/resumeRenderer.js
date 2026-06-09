@@ -193,6 +193,7 @@
     if (personal.phone) segments.push(makeLink(`tel:${personal.phone}`, personal.phone));
     if (personal.linkedin) segments.push(makeLink(personal.linkedin, personal.linkedin.replace(/^https?:\/\//i, "")));
     if (personal.github) segments.push(makeLink(personal.github, personal.github.replace(/^https?:\/\//i, "")));
+    if (personal.portfolio) segments.push(makeLink(personal.portfolio, personal.portfolio.replace(/^https?:\/\//i, "")));
 
     if (!segments.length) return "";
 

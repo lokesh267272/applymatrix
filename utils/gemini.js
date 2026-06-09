@@ -17,9 +17,19 @@ const RESUME_JSON_SCHEMA = {
         phone: { type: "string" },
         location: { type: "string" },
         linkedin: { type: "string" },
-        github: { type: "string" }
+        github: { type: "string" },
+        portfolio: { type: "string" },
       },
-      required: ["firstName", "lastName", "email", "phone", "location", "linkedin", "github"]
+      required: [
+        "firstName",
+        "lastName",
+        "email",
+        "phone",
+        "location",
+        "linkedin",
+        "github",
+        "portfolio",
+      ],
     },
     summary: { type: "string" },
     experience: {
@@ -33,10 +43,18 @@ const RESUME_JSON_SCHEMA = {
           startDate: { type: "string" },
           endDate: { type: "string" },
           current: { type: "boolean" },
-          bullets: { type: "array", items: { type: "string" } }
+          bullets: { type: "array", items: { type: "string" } },
         },
-        required: ["title", "company", "location", "startDate", "endDate", "current", "bullets"]
-      }
+        required: [
+          "title",
+          "company",
+          "location",
+          "startDate",
+          "endDate",
+          "current",
+          "bullets",
+        ],
+      },
     },
     education: {
       type: "array",
@@ -50,10 +68,19 @@ const RESUME_JSON_SCHEMA = {
           endDate: { type: "string" },
           current: { type: "boolean" },
           cgpa: { type: "string" },
-          bullets: { type: "array", items: { type: "string" } }
+          bullets: { type: "array", items: { type: "string" } },
         },
-        required: ["school", "degree", "location", "startDate", "endDate", "current", "cgpa", "bullets"]
-      }
+        required: [
+          "school",
+          "degree",
+          "location",
+          "startDate",
+          "endDate",
+          "current",
+          "cgpa",
+          "bullets",
+        ],
+      },
     },
     skills: {
       type: "object",
@@ -71,13 +98,21 @@ const RESUME_JSON_SCHEMA = {
             type: "object",
             properties: {
               title: { type: "string" },
-              items: { type: "array", items: { type: "string" } }
+              items: { type: "array", items: { type: "string" } },
             },
-            required: ["title", "items"]
-          }
-        }
+            required: ["title", "items"],
+          },
+        },
       },
-      required: ["programmingLanguages", "csConcepts", "webDevelopment", "databases", "cloudPlatforms", "mlAI", "mobileDevelopment"]
+      required: [
+        "programmingLanguages",
+        "csConcepts",
+        "webDevelopment",
+        "databases",
+        "cloudPlatforms",
+        "mlAI",
+        "mobileDevelopment",
+      ],
     },
     projects: {
       type: "array",
@@ -91,10 +126,19 @@ const RESUME_JSON_SCHEMA = {
           startDate: { type: "string" },
           endDate: { type: "string" },
           current: { type: "boolean" },
-          bullets: { type: "array", items: { type: "string" } }
+          bullets: { type: "array", items: { type: "string" } },
         },
-        required: ["name", "organization", "link", "location", "startDate", "endDate", "current", "bullets"]
-      }
+        required: [
+          "name",
+          "organization",
+          "link",
+          "location",
+          "startDate",
+          "endDate",
+          "current",
+          "bullets",
+        ],
+      },
     },
     certifications: { type: "array", items: { type: "string" } },
     achievements: { type: "array", items: { type: "string" } },
@@ -104,14 +148,25 @@ const RESUME_JSON_SCHEMA = {
         type: "object",
         properties: {
           name: { type: "string" },
-          proficiency: { type: "string" }
+          proficiency: { type: "string" },
         },
-        required: ["name", "proficiency"]
-      }
+        required: ["name", "proficiency"],
+      },
     },
-    publications: { type: "array", items: { type: "string" } }
+    publications: { type: "array", items: { type: "string" } },
   },
-  required: ["personal", "summary", "experience", "education", "skills", "projects", "certifications", "achievements", "languages", "publications"]
+  required: [
+    "personal",
+    "summary",
+    "experience",
+    "education",
+    "skills",
+    "projects",
+    "certifications",
+    "achievements",
+    "languages",
+    "publications",
+  ],
 };
 
 const ATS_JSON_SCHEMA = {
@@ -127,9 +182,15 @@ const ATS_JSON_SCHEMA = {
     nice_to_have_matched: { type: "array", items: { type: "string" } },
     nice_to_have_missing: { type: "array", items: { type: "string" } },
     weak_matches: { type: "array", items: { type: "string" } },
-    suggestions: { type: "string" }
+    suggestions: { type: "string" },
   },
-  required: ["score", "grade", "matched_keywords", "missing_keywords", "suggestions"]
+  required: [
+    "score",
+    "grade",
+    "matched_keywords",
+    "missing_keywords",
+    "suggestions",
+  ],
 };
 
 // Pull the visible answer text out of a Gemini response (skipping "thought" parts)
@@ -156,9 +217,15 @@ async function callGemini(prompt, apiKey, config = {}) {
         topK: 40,
         topP: 0.95,
         maxOutputTokens: config.maxOutputTokens ?? 2048,
-        ...(config.responseMimeType ? { responseMimeType: config.responseMimeType } : {}),
-        ...(config.responseJsonSchema ? { responseJsonSchema: config.responseJsonSchema } : {}),
-        ...(config.thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget: config.thinkingBudget } } : {}),
+        ...(config.responseMimeType
+          ? { responseMimeType: config.responseMimeType }
+          : {}),
+        ...(config.responseJsonSchema
+          ? { responseJsonSchema: config.responseJsonSchema }
+          : {}),
+        ...(config.thinkingBudget !== undefined
+          ? { thinkingConfig: { thinkingBudget: config.thinkingBudget } }
+          : {}),
       },
     }),
   });
@@ -182,7 +249,11 @@ async function callGemini(prompt, apiKey, config = {}) {
  * Gemini's automatic implicit caching discounts the repeated tokens) plus the
  * rolling conversation as a `contents` array of { role, parts } turns.
  */
-async function callGeminiConversation({ systemInstruction, contents }, apiKey, config = {}) {
+async function callGeminiConversation(
+  { systemInstruction, contents },
+  apiKey,
+  config = {},
+) {
   const body = {
     contents,
     generationConfig: {
@@ -190,7 +261,9 @@ async function callGeminiConversation({ systemInstruction, contents }, apiKey, c
       topK: 40,
       topP: 0.95,
       maxOutputTokens: config.maxOutputTokens ?? 1024,
-      ...(config.thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget: config.thinkingBudget } } : {}),
+      ...(config.thinkingBudget !== undefined
+        ? { thinkingConfig: { thinkingBudget: config.thinkingBudget } }
+        : {}),
     },
   };
   if (systemInstruction) {
@@ -233,7 +306,7 @@ function parseJsonSafely(rawText, fallbackMessage) {
       cleaned
         .replace(/,\s*([}\]])/g, "$1")
         .replace(/[\u0000-\u0019]+/g, " ")
-        .trim()
+        .trim(),
     );
   }
 
@@ -244,7 +317,7 @@ function parseJsonSafely(rawText, fallbackMessage) {
       match[0]
         .replace(/,\s*([}\]])/g, "$1")
         .replace(/[\u0000-\u0019]+/g, " ")
-        .trim()
+        .trim(),
     );
   }
 
@@ -276,24 +349,39 @@ function normalizeStringArray(value) {
 function normalizeATSResult(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
   const scoreValue = Number(
-    source.score ??
-    source.ats_score ??
-    source.match_score ??
-    0
+    source.score ?? source.ats_score ?? source.match_score ?? 0,
   );
 
   return {
-    score: Number.isFinite(scoreValue) ? Math.max(0, Math.min(100, Math.round(scoreValue))) : 0,
+    score: Number.isFinite(scoreValue)
+      ? Math.max(0, Math.min(100, Math.round(scoreValue)))
+      : 0,
     grade: String(source.grade ?? source.rating ?? "Fair").trim() || "Fair",
     title_match: String(source.title_match ?? source.titleMatch ?? "").trim(),
-    matched_keywords: normalizeStringArray(source.matched_keywords ?? source.matchedKeywords ?? source.matched),
-    missing_keywords: normalizeStringArray(source.missing_keywords ?? source.missingKeywords ?? source.missing),
-    must_have_matched: normalizeStringArray(source.must_have_matched ?? source.mustHaveMatched),
-    must_have_missing: normalizeStringArray(source.must_have_missing ?? source.mustHaveMissing),
-    nice_to_have_matched: normalizeStringArray(source.nice_to_have_matched ?? source.niceToHaveMatched),
-    nice_to_have_missing: normalizeStringArray(source.nice_to_have_missing ?? source.niceToHaveMissing),
-    weak_matches: normalizeStringArray(source.weak_matches ?? source.weakMatches),
-    suggestions: String(source.suggestions ?? source.recommendations ?? source.feedback ?? "").trim()
+    matched_keywords: normalizeStringArray(
+      source.matched_keywords ?? source.matchedKeywords ?? source.matched,
+    ),
+    missing_keywords: normalizeStringArray(
+      source.missing_keywords ?? source.missingKeywords ?? source.missing,
+    ),
+    must_have_matched: normalizeStringArray(
+      source.must_have_matched ?? source.mustHaveMatched,
+    ),
+    must_have_missing: normalizeStringArray(
+      source.must_have_missing ?? source.mustHaveMissing,
+    ),
+    nice_to_have_matched: normalizeStringArray(
+      source.nice_to_have_matched ?? source.niceToHaveMatched,
+    ),
+    nice_to_have_missing: normalizeStringArray(
+      source.nice_to_have_missing ?? source.niceToHaveMissing,
+    ),
+    weak_matches: normalizeStringArray(
+      source.weak_matches ?? source.weakMatches,
+    ),
+    suggestions: String(
+      source.suggestions ?? source.recommendations ?? source.feedback ?? "",
+    ).trim(),
   };
 }
 
@@ -302,13 +390,27 @@ function parseLabeledATSResponse(text) {
   const scoreMatch = raw.match(/^\s*score\s*:\s*(\d{1,3})/im);
   const gradeMatch = raw.match(/^\s*grade\s*:\s*([^\n\r]+)/im);
   const titleMatchMatch = raw.match(/^\s*title[_\s-]*match\s*:\s*([^\n\r]+)/im);
-  const matchedMatch = raw.match(/^\s*matched[_\s-]*keywords?\s*:\s*([^\n\r]*)/im);
-  const missingMatch = raw.match(/^\s*missing[_\s-]*keywords?\s*:\s*([^\n\r]*)/im);
-  const mustMatchedMatch = raw.match(/^\s*must[_\s-]*have[_\s-]*matched\s*:\s*([^\n\r]*)/im);
-  const mustMissingMatch = raw.match(/^\s*must[_\s-]*have[_\s-]*missing\s*:\s*([^\n\r]*)/im);
-  const niceMatchedMatch = raw.match(/^\s*nice[_\s-]*to[_\s-]*have[_\s-]*matched\s*:\s*([^\n\r]*)/im);
-  const niceMissingMatch = raw.match(/^\s*nice[_\s-]*to[_\s-]*have[_\s-]*missing\s*:\s*([^\n\r]*)/im);
-  const weakMatchesMatch = raw.match(/^\s*weak[_\s-]*matches?\s*:\s*([^\n\r]*)/im);
+  const matchedMatch = raw.match(
+    /^\s*matched[_\s-]*keywords?\s*:\s*([^\n\r]*)/im,
+  );
+  const missingMatch = raw.match(
+    /^\s*missing[_\s-]*keywords?\s*:\s*([^\n\r]*)/im,
+  );
+  const mustMatchedMatch = raw.match(
+    /^\s*must[_\s-]*have[_\s-]*matched\s*:\s*([^\n\r]*)/im,
+  );
+  const mustMissingMatch = raw.match(
+    /^\s*must[_\s-]*have[_\s-]*missing\s*:\s*([^\n\r]*)/im,
+  );
+  const niceMatchedMatch = raw.match(
+    /^\s*nice[_\s-]*to[_\s-]*have[_\s-]*matched\s*:\s*([^\n\r]*)/im,
+  );
+  const niceMissingMatch = raw.match(
+    /^\s*nice[_\s-]*to[_\s-]*have[_\s-]*missing\s*:\s*([^\n\r]*)/im,
+  );
+  const weakMatchesMatch = raw.match(
+    /^\s*weak[_\s-]*matches?\s*:\s*([^\n\r]*)/im,
+  );
   const suggestionsMatch = raw.match(/^\s*suggestions?\s*:\s*([\s\S]*)$/im);
 
   const result = normalizeATSResult({
@@ -322,12 +424,16 @@ function parseLabeledATSResponse(text) {
     nice_to_have_matched: niceMatchedMatch ? niceMatchedMatch[1].trim() : [],
     nice_to_have_missing: niceMissingMatch ? niceMissingMatch[1].trim() : [],
     weak_matches: weakMatchesMatch ? weakMatchesMatch[1].trim() : [],
-    suggestions: suggestionsMatch ? suggestionsMatch[1].trim() : ""
+    suggestions: suggestionsMatch ? suggestionsMatch[1].trim() : "",
   });
 
   if (result.score === 0 && result.matched_keywords.length > 0) {
-    const total = result.matched_keywords.length + result.missing_keywords.length;
-    result.score = total > 0 ? Math.round((result.matched_keywords.length / total) * 100) : 0;
+    const total =
+      result.matched_keywords.length + result.missing_keywords.length;
+    result.score =
+      total > 0
+        ? Math.round((result.matched_keywords.length / total) * 100)
+        : 0;
     if (result.score >= 80) result.grade = "Excellent";
     else if (result.score >= 60) result.grade = "Good";
     else if (result.score >= 40) result.grade = "Fair";
@@ -335,7 +441,8 @@ function parseLabeledATSResponse(text) {
   }
 
   if (!result.suggestions) {
-    result.suggestions = "Review the missing keywords and update your summary and bullet points to align more closely with the job description.";
+    result.suggestions =
+      "Review the missing keywords and update your summary and bullet points to align more closely with the job description.";
   }
 
   return result;
@@ -491,10 +598,13 @@ Maximize ATS match score AND recruiter shortlisting probability while remaining 
     temperature: 0.2,
     maxOutputTokens: 8192,
     responseMimeType: "application/json",
-    responseJsonSchema: RESUME_JSON_SCHEMA
+    responseJsonSchema: RESUME_JSON_SCHEMA,
   });
 
-  return parseJsonSafely(raw, "Could not parse tailored resume structure. Please try again.");
+  return parseJsonSafely(
+    raw,
+    "Could not parse tailored resume structure. Please try again.",
+  );
 }
 
 /**
@@ -507,11 +617,13 @@ async function generateCoverLetter(
   const today = new Date().toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
-    year: "numeric"
+    year: "numeric",
   });
 
   const companyName = company || "[Company Name]";
-  const greeting = company ? `Dear ${company} Hiring Team,` : "Dear Hiring Manager,";
+  const greeting = company
+    ? `Dear ${company} Hiring Team,`
+    : "Dear Hiring Manager,";
 
   const prompt = `You are a senior career coach and professional cover-letter writer. You have placed candidates at top tech companies, Fortune 500 firms, startups, and research labs. You write cover letters that get read in 30 seconds and remembered.
 
@@ -603,7 +715,7 @@ Return ONLY the letter exactly in this format. No explanations.`;
 
   return await callGemini(prompt, apiKey, {
     temperature: 0.4,
-    maxOutputTokens: 8192
+    maxOutputTokens: 8192,
   });
 }
 
@@ -654,6 +766,7 @@ Place each skill in the SINGLE best-fitting category. If a skill plausibly fits 
 5) URL NORMALIZATION:
 - linkedin: store the full canonical URL with https:// prefix. If only a username/handle ("john-doe") is given, output "https://linkedin.com/in/john-doe".
 - github: same pattern. Bare username → "https://github.com/username".
+- portfolio: the candidate's personal website/portfolio. Store the full URL with https:// prefix. If a bare domain ("johndoe.com") is given, prepend "https://". If no portfolio or personal website is present, use "".
 - project links: keep as full URLs with https:// prefix. If "github.com/user/repo" given, prepend "https://".
 - email: lowercase, trimmed, no surrounding text.
 - phone: keep digits, +, -, parentheses, spaces. Strip prose like "Phone:" prefix.
@@ -688,10 +801,13 @@ Place each skill in the SINGLE best-fitting category. If a skill plausibly fits 
     temperature: 0.1,
     maxOutputTokens: 8192,
     responseMimeType: "application/json",
-    responseJsonSchema: RESUME_JSON_SCHEMA
+    responseJsonSchema: RESUME_JSON_SCHEMA,
   });
 
-  return parseJsonSafely(raw, "Could not parse resume structure. Please try again.");
+  return parseJsonSafely(
+    raw,
+    "Could not parse resume structure. Please try again.",
+  );
 }
 
 /**
@@ -822,14 +938,23 @@ Rules:
       maxOutputTokens: 3072,
       thinkingBudget: 0,
       responseMimeType: "application/json",
-      responseJsonSchema: ATS_JSON_SCHEMA
+      responseJsonSchema: ATS_JSON_SCHEMA,
     });
 
-    const parsed = normalizeATSResult(parseJsonSafely(raw, "Could not parse ATS score response. Please try again."));
+    const parsed = normalizeATSResult(
+      parseJsonSafely(
+        raw,
+        "Could not parse ATS score response. Please try again.",
+      ),
+    );
     // If score came back as 0 but we have matched keywords, recalculate
     if (parsed.score === 0 && parsed.matched_keywords.length > 0) {
-      const total = parsed.matched_keywords.length + parsed.missing_keywords.length;
-      parsed.score = total > 0 ? Math.round((parsed.matched_keywords.length / total) * 100) : 0;
+      const total =
+        parsed.matched_keywords.length + parsed.missing_keywords.length;
+      parsed.score =
+        total > 0
+          ? Math.round((parsed.matched_keywords.length / total) * 100)
+          : 0;
       if (parsed.score >= 80) parsed.grade = "Excellent";
       else if (parsed.score >= 60) parsed.grade = "Good";
       else if (parsed.score >= 40) parsed.grade = "Fair";
@@ -859,14 +984,23 @@ Example shape only (use REAL computed values, not these placeholders):
     const raw = await callGemini(fallbackPrompt, apiKey, {
       temperature: 0.1,
       maxOutputTokens: 2048,
-      thinkingBudget: 0
+      thinkingBudget: 0,
     });
 
     try {
-      const parsed = normalizeATSResult(parseJsonSafely(raw, "Could not parse ATS score response. Please try again."));
+      const parsed = normalizeATSResult(
+        parseJsonSafely(
+          raw,
+          "Could not parse ATS score response. Please try again.",
+        ),
+      );
       if (parsed.score === 0 && parsed.matched_keywords.length > 0) {
-        const total = parsed.matched_keywords.length + parsed.missing_keywords.length;
-        parsed.score = total > 0 ? Math.round((parsed.matched_keywords.length / total) * 100) : 0;
+        const total =
+          parsed.matched_keywords.length + parsed.missing_keywords.length;
+        parsed.score =
+          total > 0
+            ? Math.round((parsed.matched_keywords.length / total) * 100)
+            : 0;
         if (parsed.score >= 80) parsed.grade = "Excellent";
         else if (parsed.score >= 60) parsed.grade = "Good";
         else if (parsed.score >= 40) parsed.grade = "Fair";
@@ -892,7 +1026,7 @@ Suggestions: KEYWORDS: <add these>. PHRASING: <one rewording>. STRUCTURE: <one s
       const labeledRaw = await callGemini(labeledPrompt, apiKey, {
         temperature: 0.1,
         maxOutputTokens: 1024,
-        thinkingBudget: 0
+        thinkingBudget: 0,
       });
 
       return parseLabeledATSResponse(labeledRaw);
@@ -955,7 +1089,11 @@ async function generateApplicationAnswer(
   { question, history, resumeText, candidateName, job },
   apiKey,
 ) {
-  const systemInstruction = buildChatSystemInstruction({ resumeText, candidateName, job });
+  const systemInstruction = buildChatSystemInstruction({
+    resumeText,
+    candidateName,
+    job,
+  });
 
   const contents = [];
   (history || []).forEach((m) => {
@@ -963,11 +1101,13 @@ async function generateApplicationAnswer(
     const text = String(m.text ?? "").trim();
     if (text) contents.push({ role, parts: [{ text }] });
   });
-  contents.push({ role: "user", parts: [{ text: String(question ?? "").trim() }] });
+  contents.push({
+    role: "user",
+    parts: [{ text: String(question ?? "").trim() }],
+  });
 
-  return await callGeminiConversation(
-    { systemInstruction, contents },
-    apiKey,
-    { temperature: 0.8, maxOutputTokens: 1024 },
-  );
+  return await callGeminiConversation({ systemInstruction, contents }, apiKey, {
+    temperature: 0.8,
+    maxOutputTokens: 1024,
+  });
 }

@@ -122,6 +122,7 @@ async function buildResumeDocx(payload) {
   if (personal.phone)    contactParts.push(personal.phone);
   if (personal.linkedin) contactParts.push(personal.linkedin.replace(/^https?:\/\//i, ""));
   if (personal.github)   contactParts.push(personal.github.replace(/^https?:\/\//i, ""));
+  if (personal.portfolio) contactParts.push(personal.portfolio.replace(/^https?:\/\//i, ""));
   if (contactParts.length) {
     children.push(new Paragraph({
       children:  [new TextRun({ text: contactParts.join("  |  "), size: CONTACT_PT, font: FONT })],
